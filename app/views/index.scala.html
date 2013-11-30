@@ -1,0 +1,263 @@
+@main("WatLang") {
+    
+    <center><h1 class="text">WatLang</h1></center>
+    <center><h2 class="text"><a href="http://esolangs.org/wiki/Esoteric_programming_language">Esoteric</a> Programming Language</h2></center>
+    <center><canvas id="canvas" width="256" height="256"></canvas></center>
+    <br>
+    <textarea id="editor" class="editor"></textarea>
+    <div>
+        <center>
+            <button type="button" id="run-button">Run</button>
+            <button type="button" id="stop-button">Stop</button>
+            <button type="button" id="reset-button">Reset</button>
+        </center>
+    </div>
+    <center><a href="https://dl.dropboxusercontent.com/u/30616242/watlang.txt">Documentation</a></center>
+    <center><a href="https://dl.dropboxusercontent.com/u/30616242/watlang-examples.txt">Example code</a></center>
+
+    <!-- Documentation here 
+    <p></p>
+    <center><h1>Documentation</h1></center>
+    <center><h3>Overview</h3></center>
+    <center><p>WatLang is a Esoteric programming language that focuses on manipulating an array of bits that correlate to pixels in a graphics canvas. The language uses symbols to manipulate a pointer and instructions to manipulate the value at the pointer.</p></center>
+    <center><h3>Symbols</h3></center>
+    -->
+
+    <script type="text/javascript">
+
+        //Array is 16*16 - Each canvas pixel will be 16 pixels
+        var CANVAS_ARRAY = 
+        [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],       
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+
+        var INTERVAL = 16;
+
+        var xPointer;
+        var yPointer;
+        var pc;
+        var code;
+
+        var ctx;
+
+        var lookForInstruction;
+        var skipNextInstruction;
+
+        var stop;
+
+        $(document).ready(function() {
+            ctx = $('#canvas')[0].getContext('2d');
+            resetEverything();
+        });
+
+        $('#run-button').click(function(){
+            stop = false;
+            resetEverything();
+            executeCode();
+        });
+
+        $('#stop-button').click(function(){
+            stop = true;
+        });
+
+        $('#reset-button').click(function(){
+            resetEverything();
+            drawScreen();
+        });
+
+        function resetEverything(){
+            xPointer = 0;
+            yPointer = 0;
+            pc = 0;
+            code = $('#editor').val();
+            for(var x = 0; x <= INTERVAL - 1; x++){
+                for(var y = 0; y <= INTERVAL - 1; y++){
+                    CANVAS_ARRAY[x][y] = 0;
+                }
+            }
+            lookForInstruction = false;
+            skipNextInstruction = false;
+        }
+
+        function executeCode(){
+            if(pc >= code.length){
+                return;
+            }
+
+            var execute;
+            if(lookForInstruction && skipNextInstruction){
+                execute = true;
+                skipNextInstruction = false;
+                pc += 3;
+            }
+            else{
+                execute = run();
+            }
+
+            //console.log("xP= " + xPointer + " yP= " + yPointer + " & the value is " + CANVAS_ARRAY[xPointer][yPointer] + " and were at pc " + pc + " and skip = " + skipNextInstruction);
+            drawScreen();
+            if(execute && !stop){
+                executeCode();
+            }
+        }
+
+        function run(){
+            if(lookForInstruction){
+                var instruction = code.substring(pc, pc + 3);
+                pc += 3;
+                lookForInstruction = false;
+                return evaluateInstruction(instruction);
+            }
+            else{
+                var currentChar = code.charAt(pc);
+                pc++;    
+                return evaluateChar(currentChar);           
+            }
+        }
+
+        function drawScreen(){
+            for(var x = 0; x <= INTERVAL - 1; x++){
+                for(var y = 0; y <= INTERVAL - 1; y++){
+                    if(CANVAS_ARRAY[x][y] == 0){
+                        ctx.fillStyle = "#FFFFFF";
+                    }
+                    else{
+                        ctx.fillStyle = "#000000";
+                    }
+                    ctx.fillRect(x * INTERVAL, y * INTERVAL, INTERVAL, INTERVAL);
+                }
+            }
+        }
+
+        function evaluateChar(currentChar){
+            if(currentChar == " "){
+                lookForInstruction = true;
+                return true;
+            }
+            else if(currentChar == ">"){
+                if(xPointer + 1 < INTERVAL){
+                    xPointer++;
+                }
+                return true;
+            }
+            else if(currentChar == "<"){
+                if(xPointer - 1 >= 0){
+                    xPointer--;
+                }
+                return true;
+            }            
+            else if(currentChar.toUpperCase() == "V"){
+                if(yPointer + 1 < INTERVAL){
+                    yPointer++;
+                }
+                return true;
+            }
+            else if(currentChar == "^"){
+                if(yPointer - 1 >= 0){
+                    yPointer--;
+                }
+                return true;
+            }
+            else if(currentChar == "/"){
+                xPointer = INTERVAL - 1;
+                return true;
+            }          
+            else if(currentChar == "\\"){
+                xPointer = 0;
+                return true;
+            }  
+            else if(currentChar == "+"){
+                yPointer = 0;
+                return true;
+            }
+            else if(currentChar == "-"){
+                yPointer = INTERVAL - 1;
+                return true;
+            }
+            else if(currentChar == "~"){
+                xPointer = getRandomInt(0, INTERVAL - 1);
+                yPointer = getRandomInt(0, INTERVAL - 1);
+                return true;
+            }
+        }
+
+        function evaluateInstruction(instruction){
+            //if(instruction.toUpperCase() == ""){}
+            if(instruction.toUpperCase() == "WAT"){
+                if(CANVAS_ARRAY[xPointer][yPointer] == 1){
+                    CANVAS_ARRAY[xPointer][yPointer] = 0;
+                }
+                else{
+                    CANVAS_ARRAY[xPointer][yPointer] = 1;
+                }
+                return true;
+            }
+            else if(instruction.toUpperCase() == "OMG"){
+                CANVAS_ARRAY[xPointer][yPointer] = 1;
+                return true;
+            }
+            else if(instruction.toUpperCase() == "NOO"){
+                CANVAS_ARRAY[xPointer][yPointer] = 0;
+                return true;
+            }
+            else if(instruction.toUpperCase() == "HMM"){
+                if(CANVAS_ARRAY[xPointer][yPointer] == 0){
+                    skipNextInstruction = true;
+                }
+                return true;
+            }
+            else if(instruction.toUpperCase() == "HRM"){
+                if(CANVAS_ARRAY[xPointer][yPointer] == 1){
+                    skipNextInstruction = true;
+                }
+                return true;
+            }
+            else if(instruction.toUpperCase() == "LOL"){
+                for(var x = 0; x <= INTERVAL - 1; x++){
+                    for(var y = 0; y <= INTERVAL - 1; y++){
+                        CANVAS_ARRAY[x][y] = 0;
+                    }
+                }
+                return true;
+            }
+            else if(instruction.toUpperCase() == "HAH"){
+                for(var x = 0; x <= INTERVAL - 1; x++){
+                    for(var y = 0; y <= INTERVAL - 1; y++){
+                        CANVAS_ARRAY[x][y] = 1;
+                    }
+                }
+                return true;
+            }
+            else if(instruction.toUpperCase() == "GRR"){
+                pc = 0;
+                return true;
+            }
+            else if(instruction.toUpperCase() == "UHM"){
+                var pauseTime = xPointer * yPointer;
+                setTimeout(function(){
+                    executeCode();
+                }, pauseTime);
+                return false;
+            }
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }        
+
+    </script>
+
+}
